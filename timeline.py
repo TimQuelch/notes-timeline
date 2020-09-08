@@ -19,15 +19,22 @@ print(len([x for x in c.tree.traverse() if x.type == "blob"]))
 print(len([x for x in c.tree.traverse() if x.type == "blob" and os.path.splitext(x.name)[-1] == ".org"]))
 print([x.name for x in c.tree.traverse() if x.type == "blob" and not os.path.splitext(x.name)[-1] == ".org"])
 
-data = pd.DataFrame(columns=["date", "size"])
+data = pd.DataFrame(columns=["date", "size", "files"])
+
+def extractData(commit):
+    blobs = [x for x in c.tree.traverse() if x.type == "blob"]
+    words = [len(b.data_stream.read().split()) for b in blobs]
+    return {"date": c.authored_date, "size": sum(words), "files": len(blobs)}
 
 for c in repo.iter_commits("master"):
-    files = [x for x in c.tree.traverse() if x.type == "blob"]
-    data = data.append({"date": c.authored_date, "size": len(files)}, ignore_index=True)
+    data = data.append(extractData(c), ignore_index=True)
 
 data["date"] = pd.to_datetime(data["date"], unit="s")
+data["size"] = pd.to_numeric(data["size"])
+data["files"] = pd.to_numeric(data["files"])
 data = data.set_index("date")
 
-data.plot()
+data["size"].plot()
+data["files"].plot(secondary_y=True)
 print(data.head())
 plt.show()
