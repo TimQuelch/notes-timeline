@@ -19,22 +19,49 @@ print(len([x for x in c.tree.traverse() if x.type == "blob"]))
 print(len([x for x in c.tree.traverse() if x.type == "blob" and os.path.splitext(x.name)[-1] == ".org"]))
 print([x.name for x in c.tree.traverse() if x.type == "blob" and not os.path.splitext(x.name)[-1] == ".org"])
 
-data = pd.DataFrame(columns=["date", "size", "files"])
+
+exFiles = ["inbox", "todo", "setup"]
+exSubdirs = ["calendars"]
+exExtensions = []
+
+def excludeFiles(blob):
+    name, _ = os.path.splitext(blob.name)
+    return name in exFiles
+
+def excludeSubdirs(blob):
+    directory = os.path.dirname(blob.path)
+    return directory in exSubdirs
+
+def excludeExtensions(blob):
+    _, ext = os.path.splitext(blob.name)
+    return ext in exExtensions
+
+excluders = [excludeFiles, excludeSubdirs, excludeExtensions]
+
+data = pd.DataFrame()
 
 def extractData(commit):
-    blobs = [x for x in c.tree.traverse() if x.type == "blob"]
+    blobs = [
+        x
+        for x in c.tree.traverse()
+        if x.type == "blob" and not any(f(x) for f in excluders)
+    ]
     words = [len(b.data_stream.read().split()) for b in blobs]
-    return {"date": c.authored_date, "size": sum(words), "files": len(blobs)}
+    return {
+        "date": pd.to_datetime(c.authored_date, unit="s"),
+        "size": sum(words),
+        "files": len(blobs),
+        "commit": commit.hexsha,
+    }
 
 for c in repo.iter_commits("master"):
     data = data.append(extractData(c), ignore_index=True)
 
-data["date"] = pd.to_datetime(data["date"], unit="s")
-data["size"] = pd.to_numeric(data["size"])
-data["files"] = pd.to_numeric(data["files"])
 data = data.set_index("date")
 
 data["size"].plot()
 data["files"].plot(secondary_y=True)
 print(data.head())
 plt.show()
+
+print(data.iloc[data["size"].argmax()])
