@@ -1,5 +1,6 @@
 import git
 import os
+import re
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -28,6 +29,26 @@ def excludeExtensions(blob):
 excluders = [excludeFiles, excludeSubdirs, excludeExtensions]
 
 
+def processContents(s):
+    l1 = len(s)
+    # Remove backslashes (weird escapes)
+    s = re.sub(r"\\", "", s)
+    l2 = len(s)
+
+    # Remove blocks
+    blockRe = r"#\+begin_?([^ \n]+).*?#\+end_?\1"
+    s = re.sub(blockRe, "", s, flags=(re.I | re.S))
+    l3 = len(s)
+
+    # Remove keywords
+    keywordRe = r"#\+(.*):(.*)\n"
+    s = re.sub(keywordRe, "", s, flags=(re.I))
+    l4 = len(s)
+
+    print("len: {}, {}, {}, {}".format(l1, l2, l3, l4))
+    return s
+
+
 data = pd.DataFrame()
 
 
@@ -37,7 +58,8 @@ def extractData(commit):
         for x in c.tree.traverse()
         if x.type == "blob" and not any(f(x) for f in excluders)
     ]
-    words = [len(b.data_stream.read().split()) for b in blobs]
+    words = [len(processContents(b.data_stream.read().decode()).split())
+             for b in blobs]
     return {
         "date": pd.to_datetime(c.authored_date, unit="s"),
         "size": sum(words),
