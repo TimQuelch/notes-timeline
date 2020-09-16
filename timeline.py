@@ -44,9 +44,6 @@ def processContents(s):
     return s
 
 
-data = pd.DataFrame()
-
-
 def extractData(commit):
     blobs = [
         x
@@ -55,22 +52,40 @@ def extractData(commit):
     ]
     words = [len(processContents(b.data_stream.read().decode()).split())
              for b in blobs]
+    dateutc = pd.to_datetime(c.authored_date, unit="s", utc=True)
+    date = dateutc.tz_convert('Australia/Melbourne')
     return {
-        "date": pd.to_datetime(c.authored_date, unit="s"),
-        "size": sum(words),
+        "date": date,
+        "words": sum(words),
         "files": len(blobs),
         "commit": commit.hexsha,
     }
 
 
-for c in repo.iter_commits("master"):
+data = pd.DataFrame()
+for c in repo.iter_commits():
     data = data.append(extractData(c), ignore_index=True)
 
 data = data.set_index("date")
 
-data["size"].plot()
-data["files"].plot(secondary_y=True)
+fig, ax = plt.subplots()
+data["words"].plot(ax=ax)
+data["files"].plot(ax=ax, secondary_y=True)
 print(data.head())
+
+fig, ax = plt.subplots()
+ax2 = ax.twinx()
+weekday = data.groupby(data.index.weekday).mean()
+weekday["words"].plot.bar(ax=ax, position=0, width=0.4, color='blue')
+weekday["files"].plot.bar(ax=ax2, position=1, width=0.4, color='red')
+
+fig, ax = plt.subplots()
+ax2 = ax.twinx()
+hour = data.groupby(data.index.hour).mean()
+hour["words"].plot.bar(ax=ax, position=0, width=0.4, color='blue')
+hour["files"].plot.bar(ax=ax2, position=1, width=0.4, color='red')
+
+
 plt.show()
 
-print(data.iloc[data["size"].argmax()])
+print(data.iloc[data["words"].argmax()])
