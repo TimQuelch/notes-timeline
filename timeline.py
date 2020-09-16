@@ -5,40 +5,31 @@ import matplotlib.pyplot as plt
 
 repo = git.Repo(os.path.join(os.getcwd(), "notes"))
 
-# for c in repo.iter_commits("master"):
-#     print(c.authored_datetime)
-
-
-cs = list(repo.iter_commits("master"))
-c = cs[0]
-
-print(c)
-print(len(c.tree))
-print(len([x for x in c.tree.traverse()]))
-print(len([x for x in c.tree.traverse() if x.type == "blob"]))
-print(len([x for x in c.tree.traverse() if x.type == "blob" and os.path.splitext(x.name)[-1] == ".org"]))
-print([x.name for x in c.tree.traverse() if x.type == "blob" and not os.path.splitext(x.name)[-1] == ".org"])
-
-
 exFiles = ["inbox", "todo", "setup"]
 exSubdirs = ["calendars"]
 exExtensions = []
+
 
 def excludeFiles(blob):
     name, _ = os.path.splitext(blob.name)
     return name in exFiles
 
+
 def excludeSubdirs(blob):
     directory = os.path.dirname(blob.path)
     return directory in exSubdirs
+
 
 def excludeExtensions(blob):
     _, ext = os.path.splitext(blob.name)
     return ext in exExtensions
 
+
 excluders = [excludeFiles, excludeSubdirs, excludeExtensions]
 
+
 data = pd.DataFrame()
+
 
 def extractData(commit):
     blobs = [
@@ -53,6 +44,7 @@ def extractData(commit):
         "files": len(blobs),
         "commit": commit.hexsha,
     }
+
 
 for c in repo.iter_commits("master"):
     data = data.append(extractData(c), ignore_index=True)
