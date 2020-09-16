@@ -30,22 +30,17 @@ excluders = [excludeFiles, excludeSubdirs, excludeExtensions]
 
 
 def processContents(s):
-    l1 = len(s)
     # Remove backslashes (weird escapes)
     s = re.sub(r"\\", "", s)
-    l2 = len(s)
 
     # Remove blocks
     blockRe = r"#\+begin_?([^ \n]+).*?#\+end_?\1"
     s = re.sub(blockRe, "", s, flags=(re.I | re.S))
-    l3 = len(s)
 
     # Remove keywords
     keywordRe = r"#\+(.*):(.*)\n"
     s = re.sub(keywordRe, "", s, flags=(re.I))
-    l4 = len(s)
 
-    print("len: {}, {}, {}, {}".format(l1, l2, l3, l4))
     return s
 
 
