@@ -5,6 +5,7 @@ using LibGit2: GitCommit, GitRepo, GitRevWalker, GitTree, GitTreeEntry, GitBlob,
 using DataFrames
 using Dates
 using Statistics
+using StatsPlots
 
 const EXCLUDE_FILES = Set(["inbox", "todo", "setup"])
 const EXCLUDE_DIRS = Set(["calendars"])
@@ -82,7 +83,7 @@ function processFileContents(files)
 end
 
 function main()
-    repos = ["notes"]
+    repos = ["data/notes"]
     files, commits = loadRepo.(repos) |> x -> (vcat(first.(x)...), vcat(last.(x))...)
     @info "results" files commits
     cdata = processFileContents(files)
