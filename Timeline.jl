@@ -5,7 +5,6 @@ using LibGit2: GitCommit, GitRepo, GitRevWalker, GitTree, GitTreeEntry, GitBlob,
 using DataFrames
 using Dates
 using Statistics
-using Lazy
 
 const EXCLUDE_FILES = Set(["inbox", "todo", "setup"])
 const EXCLUDE_DIRS = Set(["calendars"])
@@ -54,31 +53,49 @@ function date(id, repo)
     time = unix2datetime(sig.time + sig.time_offset*60)
 end
 
-date(ids::AbstractVector{String}, repo) = [date(id, repo) for id in ids]
-
-function processRepo(path)
+function loadRepo(path)
     r = GitRepo(path)
     @info "Loading $path repo"
-    files = with(walker -> LibGit2.map(processCommit, walker), GitRevWalker(r)) |> dfs -> vcat(dfs...)
-    transform!(
-        files,
-        :content => (x -> x .|> split .|> length) => :words,
-    )
+    files = with(GitRevWalker(r)) do walker
+        LibGit2.map(processCommit, walker)
+    end |> dfs -> vcat(dfs...)
 
+    commits = with(GitRevWalker(r)) do walker
+        LibGit2.map(walker) do id, repo
+            return (commit=sprint(print, id), time=date(id, repo))
+        end
+    end |> DataFrame
+    commits.repo = path
+
+    @info ("Loaded '$path repo' with $(size(commits, 1)) commits "
+           * "and $(size(files, 1)) total files")
+    return files, commits
+end
+
+function processFileContents(files)
     commits = combine(
         DataFrames.groupby(files, :commit),
         nrow => :files,
-        :words => sum,
+        :content => (x -> x .|> split .|> length |> sum) => :words,
     )
-    transform!(
-        commits,
-        :commit => (ids -> date(ids, r)) => :time,
-    )
+    return commits
+end
 
-    sort!(commits, [:time])
-    @info ("Loaded $path repo with $(size(commits, 1)) commits and $(size(files, 1))"
-           * " total files ($(commits[end, :files]) files in the most recent commit)")
-    return commits, files
+function main()
+    repos = ["notes"]
+    files, commits = loadRepo.(repos) |> x -> (vcat(first.(x)...), vcat(last.(x))...)
+    @info "results" files commits
+    cdata = processFileContents(files)
+
+    df = innerjoin(commits, cdata, on=:commit)
+    @df df plot(
+        plot(:time, :words, ylabel="words"),
+        plot(:time, :files, ylabel="files"),
+        xlabel="time",
+        legend=false,
+        layout=grid(2, 1),
+        link=:x,
+    )
 end
 
 end
