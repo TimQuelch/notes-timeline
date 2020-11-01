@@ -6,6 +6,8 @@ using DataFrames
 using Dates
 using Statistics
 using StatsPlots
+using OrgMode
+using Lazy
 
 const EXCLUDE_FILES = Set(["inbox", "todo", "setup"])
 const EXCLUDE_DIRS = Set(["calendars"])
@@ -73,11 +75,24 @@ function loadRepo(path)
     return files, commits
 end
 
+function countPlainTextWords(s)
+    @debug "parsing contents" s
+    sum_or_zero(x) = isempty(x) ? 0 : reduce(+, x)
+    @>>(
+        OrgMode.parse(s),
+        OrgMode.map(identity, OrgMode.PlainText),
+        map(pt -> pt.contents),
+        map(split),
+        map(length),
+        sum_or_zero,
+    )
+end
+
 function processFileContents(files)
     commits = combine(
         DataFrames.groupby(files, :commit),
         nrow => :files,
-        :content => (x -> x .|> split .|> length |> sum) => :words,
+        :content => (x -> countPlainTextWords.(x) |> sum) => :words,
     )
     return commits
 end
@@ -85,7 +100,6 @@ end
 function main()
     repos = ["data/notes"]
     files, commits = loadRepo.(repos) |> x -> (vcat(first.(x)...), vcat(last.(x))...)
-    @info "results" files commits
     cdata = processFileContents(files)
 
     df = innerjoin(commits, cdata, on=:commit)
