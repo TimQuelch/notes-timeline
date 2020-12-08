@@ -1,3 +1,12 @@
 [submodule "notes"]
 	path = data/notes
 	url = git@github.com:TimQuelch/notes.git
+[submodule "data/thesis"]
+	path = data/thesis
+	url = git@github.com:TimQuelch/thesis.git
+[submodule "data/avoiding-circles"]
+	path = data/avoiding-circles
+	url = git@github.com:TimQuelch/avoiding-circles.git
+[submodule "data/global-toa"]
+	path = data/global-toa
+	url = git@github.com:TimQuelch/GlobalTOA.git

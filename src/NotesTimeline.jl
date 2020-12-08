@@ -98,7 +98,7 @@ function processFileContents(files)
 end
 
 function main()
-    repos = ["data/notes"]
+    repos = map(r -> "data/" * r, ["notes", "thesis", "avoiding-circles", "global-toa"])
     files, commits = loadRepo.(repos) |> x -> (vcat(first.(x)...), vcat(last.(x))...)
     cdata = processFileContents(files)
 
