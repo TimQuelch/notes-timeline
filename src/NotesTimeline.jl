@@ -88,19 +88,41 @@ function countPlainTextWords(s)
     )
 end
 
-function processFileContents(files)
-    commits = combine(
+pmap(f, itr) = map(fetch, map(i -> Threads.@spawn(f(i)), itr))
+
+function processFile(filerow)
+    ast = OrgMode.parse(filerow.content)
+    sum_or_zero(x) = isempty(x) ? 0 : reduce(+, x)
+    ptwords = @>>(
+        ast,
+        OrgMode.map(pt -> pt.contents |> split |> length, OrgMode.PlainText),
+        sum_or_zero,
+    )
+    return (words=ptwords,)
+end
+
+function processFiles!(files)
+    stats = DataFrame(pmap(processFile, Tables.rows(files)))
+    for c in Tables.schema(stats).names
+        files[c] = Tables.getcolumn(stats, c)
+    end
+end
+
+function processCommitData(files)
+    return combine(
         DataFrames.groupby(files, :commit),
         nrow => :files,
-        :content => (x -> countPlainTextWords.(x) |> sum) => :words,
+        :words => sum => :words,
     )
-    return commits
 end
 
 function main()
     repos = map(r -> "data/" * r, ["notes", "thesis", "avoiding-circles", "global-toa"])
-    files, commits = loadRepo.(repos) |> x -> (vcat(first.(x)...), vcat(last.(x))...)
-    cdata = processFileContents(files)
+    # repos = map(r -> "data/" * r, ["thesis", "avoiding-circles", "global-toa"])
+    @time files, commits = loadRepo.(repos) |> x -> (vcat(first.(x)...), vcat(last.(x))...)
+    @time processFiles!(files)
+    @time cdata = processCommitData(files)
+
 
     df = innerjoin(commits, cdata, on=:commit)
     @df df plot(
